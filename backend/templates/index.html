@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Trading Multi-Bot</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f9f9f9; }
+        h1 { color: #333; }
+        
+        /* Form Creazione Bot */
+        .control-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+        .btn-start { background-color: #28a745; color: white; }
+        .btn-start:hover { background-color: #218838; }
+        
+        /* Container Griglia Bot */
+        #botsContainer {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        /* Card del Bot */
+        .bot-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        .bot-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .bot-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; }
+        .bot-title { font-size: 1.2em; font-weight: bold; color: #007bff; }
+        .bot-status { font-size: 0.9em; font-weight: bold; }
+        .status-running { color: green; }
+        .status-stopped { color: red; }
+        
+        .bot-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9em; }
+        .metric-label { color: #666; }
+        .metric-value { font-weight: bold; }
+        
+        .btn-stop { background-color: #dc3545; color: white; width: 100%; margin-top: 15px; }
+        .btn-stop:hover { background-color: #c82333; }
+
+        #globalMessage { margin-top: 10px; font-weight: bold; min-height: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Agente Trading - Gestore Flotta</h1>
+    
+    <div class="control-panel">
+        <input type="text" id="newBotId" placeholder="ID Bot (es. btc_h1)" value="bot_1">
+        <select id="datasetSelect">
+            <option value="">Caricamento dataset...</option>
+        </select>
+        <button id="createBotBtn" class="btn-start">Avvia Nuovo Bot</button>
+    </div>
+    <div id="globalMessage"></div>
+
+    <h2>Bot Attivi</h2>
+    <div id="botsContainer">
+        <p style="color: #777;">Nessun bot attivo. Avviane uno sopra.</p>
+    </div>
+
+    <style>
+        /* Aggiunta stili per i log */
+        .logs-container {
+            margin-top: 10px;
+            background: #222;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 0.8em;
+            padding: 5px;
+            border-radius: 4px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        .log-entry { border-bottom: 1px solid #333; padding: 2px 0; }
+    </style>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

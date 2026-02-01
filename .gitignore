@@ -1,0 +1,28 @@
+# Ambiente Virtuale
+venv/
+ENV/
+env/
+.env
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Sessioni e Stato (Dati temporanei dei bot)
+backend/sessions/
+status_*.json
+
+# Database e Log
+*.log
+*.sqlite
+
+# IDE e Sistema Operativo
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Cartelle temporanee Gemini CLI
+.gemini/
