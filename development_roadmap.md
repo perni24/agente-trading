@@ -1,97 +1,118 @@
-# Roadmap di Sviluppo: Agente di Trading
+# Roadmap Correttiva: Agente di Trading
 
-Questo documento delinea le fasi di sviluppo del progetto, concentrandosi prima sull'infrastruttura fondamentale, poi sull'estensione e infine sull'integrazione dell'AI.
-
----
-
-## Fase 1: Infrastruttura Base (Flask + Backtrader Singola Sessione)
-
-**Obiettivo:** Creare un'applicazione web funzionante end-to-end che possa avviare, fermare e monitorare una singola istanza di Backtrader tramite un'interfaccia Flask.
-
-### Task:
-
-1.  **Backend (`backend/app.py`):**
-    *   **Gestione del Processo Backtrader (Avvio e Arresto):**
-        *   [x] **1.1: Aggiungere l'endpoint `POST /start_bot` in `app.py`.**
-        *   [x] **1.2: Aggiungere l'endpoint `POST /stop_bot` in `app.py`.**
-        *   [x] **1.3: Implementare l'avvio del processo Backtrader in `app.py` (`POST /start_bot`).**
-        *   [x] **1.4: Implementare l'arresto del processo Backtrader in `app.py` (`POST /stop_bot`).**
-        *   [x] **1.5: Aggiungere controlli di stato al bot in `start_bot` e `stop_bot`.**
-
-    *   **Meccanismo di Comunicazione dello Stato (`status.json`):**
-        *   [x] **1.6: Creare il file `status.json` (anche vuoto) e l'endpoint `GET /status` in `app.py`.**
-        *   [x] **1.7: Modificare `trading_engine.py` per scrivere lo stato su `status.json`.**
-        *   [x] **1.8: Migliorare l'endpoint `GET /status` per includere lo stato del processo e le informazioni da `status.json`.**
-
-2.  **Backtrader (`backend/trading_engine.py`):**
-    *   [x] Mantenere la strategia di esempio semplice.
-    *   [x] Modificare la strategia per scrivere periodicamente il suo stato (valore del portafoglio, posizione attuale, log eventi) nel file `status.json`.
-
-3.  **Frontend (UI Base - `backend/templates/index.html` e `backend/static/js/main.js`):**
-    *   [x] Aggiornare `index.html` con una dashboard di base.
-    *   [x] Creare un file JavaScript (`main.js`) per gestire eventi e polling periodico.
+Questa roadmap sostituisce il piano precedente ed e' focalizzata sui problemi reali emersi dall'analisi del codice.
 
 ---
 
-## Fase 2: Estensione a N Sessioni (Backtrader Multi-Valuta)
+## Priorita P0 (Blocchi Funzionali e Sicurezza)
 
-**Obiettivo:** Trasformare il sistema da "Single-Bot" a "Multi-Bot", permettendo la gestione parallela di diverse istanze di trading (es. su diversi asset o strategie).
+**Obiettivo:** rendere il sistema corretto, fermabile e sicuro prima di qualsiasi nuova feature.
 
-### Task:
+1. **Correggere il blocco della strategia dopo il primo ordine** (`backend/trading_engine.py`)
+- [x] Implementare `notify_order` e azzerare `self.order` quando l'ordine e' `Completed`, `Canceled`, `Margin` o `Rejected`.
+- [x] Evitare che `next()` resti permanentemente in `return` dopo il primo trade.
+- [x] Aggiungere log espliciti sul ciclo ordine per debug.
+  Implementato in `backend/trading_engine.py` con gestione stati ordine, reset lock ordine e aggiornamento stato sessione.
 
-1.  **Trading Engine (`backend/trading_engine.py`):**
-    *   [x] **2.1: Supporto Argomenti CLI (Identità del Bot).**
-    *   [x] **2.2: Isolamento dello Stato.**
-2.  **Backend (`backend/app.py`):**
-    *   [x] **2.3: Gestione Processi Multipli.**
-    *   [x] **2.4: Aggiornamento Endpoint `/start_bot`.**
-    *   [x] **2.5: Aggiornamento Endpoint `/stop_bot`.**
-    *   [x] **2.6: Aggiornamento Endpoint `/status`.**
-3.  **Frontend (`index.html` e `main.js`):**
-    *   [x] **2.7: UI Creazione Bot.**
-        *   [x] **2.8: Rendering Dinamico della Dashboard.**
-            *   Rimuovere i controlli statici esistenti.
-            *   In `main.js`, aggiornare la funzione di polling per ricevere la lista dei bot.
-            *   Generare dinamicamente l'HTML (Card/Pannelli) per ogni bot attivo, ognuno con il suo pulsante "Stop" e i suoi dati.
-    
-    ---
-    
-    ## Fase 2.5: Consolidamento e Gestione Dati
-    
-    **Obiettivo:** Rendere il sistema flessibile permettendo la selezione di diversi dataset per ogni bot e migliorando la visualizzazione delle operazioni.
-    
-    ### Task:
-    
-    1.  **Backend - Gestione Dataset:**
-        *   [x] **2.5.1: Struttura Dati.**
-            *   Creare la cartella `backend/data` e spostare lì `dati_esempio.csv`.
-            *   Creare un endpoint `GET /list_datasets` che restituisce la lista dei file CSV presenti in quella cartella.
-        *   [x] **2.5.2: Aggiornamento Engine e Start.**
-            *   Aggiornare `trading_engine.py` per accettare un nuovo argomento `--data_file`.
-            *   Aggiornare l'endpoint `/start_bot` per ricevere `data_file` dal frontend e passarlo al sottoprocesso.
-    
-    2.  **Frontend - Selezione e Log:**
-        *   [x] **2.5.3: Selezione Dataset.**
-            *   Nel form di creazione bot, sostituire l'input manuale del "Simbolo" (o aggiungerne uno nuovo) con un menu a tendina `<select>` che si popola chiamando `/list_datasets`.
-        *   [x] **2.5.4: Visualizzazione Log.**
-            *   Modificare `AgentStrategy` per salvare gli ultimi 10 log nel `status.json` (invece di solo l'ultimo evento).
-            *   Aggiornare la Card del bot in `main.js` per mostrare una piccola finestra di log scrollabile.
-    
-    ---
-        ## Fase 3: Integrazione AI
+2. **Rimuovere il loop infinito post-backtest** (`backend/trading_engine.py`)
+- [x] Eliminare il `while True` finale usato come debug.
+- [x] Chiudere il processo in modo pulito al termine del backtest.
+- [x] Scrivere stato finale una sola volta (`Completato` / `Errore`).
+  Implementato con modalita `--mode backtest|live`, stati terminali espliciti e nessun keep-alive artificiale.
 
-**Obiettivo:** Sostituire la logica decisionale della strategia Backtrader con l'agente AI, rendendo il bot intelligente.
+3. **Allineare i path dei file di sessione** (`backend/app.py`, `backend/trading_engine.py`)
+- [ ] Usare path assoluti basati su `os.path.dirname(__file__)` sia in scrittura che in lettura.
+- [ ] Uniformare il path `backend/sessions/status_<bot_id>.json` in tutti gli endpoint.
 
-### Task:
+4. **Correggere gestione crash in avvio bot** (`backend/app.py`)
+- [ ] Se si vogliono leggere output/errori, usare `stdout=subprocess.PIPE` e `stderr=subprocess.PIPE`.
+- [ ] In alternativa, rimuovere `.strip()` su valori `None` e gestire messaggio fallback robusto.
 
-1.  **Backend (`backend/trading_engine.py`):**
-    *   [ ] Modificare la classe `AgentStrategy` per preparare i dati di mercato.
-    *   [ ] Implementare la logica per inviare i dati preparati all'agente AI (potrebbe essere una chiamata API a un modello locale o remoto, o l'integrazione di una libreria AI).
-    *   [ ] Gestire la risposta dell'agente AI e tradurla in ordini di Backtrader.
-    *   [ ] Aggiungere la possibilità di configurare l'agente AI (modello da usare, parametri).
+5. **Bloccare path traversal su `bot_id` e `data_file`** (`backend/app.py`, `backend/trading_engine.py`)
+- [ ] Validare `bot_id` con allowlist (es. `^[A-Za-z0-9_-]{1,64}$`).
+- [ ] Verificare che `data_file` punti solo a file presenti in `backend/data` (niente `..`, niente path assoluti).
+- [ ] Rifiutare input non validi con `400`.
 
-2.  **Preparazione e Addestramento AI:**
-    *   [ ] Sviluppare o selezionare il modello AI più adatto.
-    *   [ ] Raccolta e preparazione dei dati di addestramento.
-    *   [ ] Addestramento e ottimizzazione del modello AI.
-    *   [ ] Implementazione dell'interfaccia per interagire con il modello AI.
+6. **Eliminare XSS nella dashboard** (`backend/static/js/main.js`)
+- [ ] Smettere di costruire card con `innerHTML` su dati non trusted.
+- [ ] Usare `textContent` e creazione nodi DOM esplicita.
+- [ ] Rimuovere `onclick` inline e usare `addEventListener`.
+
+7. **Disattivare fallback random in produzione** (`backend/ai_agent.py`)
+- [ ] Quando modello non pronto o feature non pronte, restituire solo `HOLD`.
+- [ ] Rendere il comportamento configurabile via flag (`safe_mode=True` default).
+
+---
+
+## Priorita P1 (Robustezza Runtime)
+
+**Obiettivo:** evitare stati inconsistenti e problemi in uso concorrente.
+
+1. **Gestione concorrente di `active_bots`** (`backend/app.py`)
+- [ ] Proteggere accesso con lock (`threading.Lock`) o serializzare modifiche.
+- [ ] Rendere atomiche le operazioni start/stop/status.
+
+2. **Pulizia automatica processi terminati** (`backend/app.py`)
+- [ ] Durante `/status`, rimuovere bot con processo terminato.
+- [ ] Esporre chiaramente `stopped_at` e motivo termine.
+
+3. **Rilevamento timeframe corretto** (`backend/trading_engine.py`)
+- [ ] Non hardcodare `compression=15` per tutti gli intraday.
+- [ ] Inferire timeframe dal dataset o passarlo esplicitamente da UI/API.
+
+4. **Path modello robusti e indipendenti dalla cwd** (`backend/ai_agent.py`, `backend/train_model.py`)
+- [ ] Usare path assoluti basati sulla directory del file Python.
+- [ ] Creare sempre `backend/models` prima di salvare.
+
+5. **Coerenza API: rimuovere parametri inutilizzati** (`backend/app.py`, `backend/trading_engine.py`)
+- [ ] Eliminare `symbol` se non serve, oppure usarlo realmente nel motore.
+
+---
+
+## Priorita P2 (Qualita, Osservabilita, Manutenzione)
+
+**Obiettivo:** stabilizzare il progetto e ridurre regressioni future.
+
+1. **Test automatici minimi**
+- [ ] Unit test su validazione input (`bot_id`, `data_file`).
+- [ ] Test integrazione su `/start_bot`, `/stop_bot`, `/status`.
+- [ ] Test strategia: apertura/chiusura ordini multipli senza freeze.
+- [ ] Test AI: assenza di `BUY/SELL` random in fallback sicuro.
+
+2. **Configurazione runtime**
+- [ ] Introdurre file/config env per soglie AI (`buy_threshold`, `sell_threshold`) e modalita debug.
+- [ ] Disabilitare `debug=True` di default nei run path standard.
+
+3. **Encoding e igiene codice**
+- [ ] Uniformare file a UTF-8 senza caratteri corrotti.
+- [ ] Rimuovere import inutilizzati (`numpy`, `sys` dove non necessari).
+
+4. **Policy sessioni**
+- [ ] Rivedere `cleanup_sessions()` per non cancellare sempre tutto all'avvio.
+- [ ] Introdurre retention configurabile o cleanup selettivo.
+
+5. **Dashboard - Risultato finale bot**
+- [x] Mostrare in UI l'esito finale del bot a run terminata.
+- [x] Mostrare `Valore Finale` e `PnL` nelle card quando `bot_running=false`.
+- [x] Allineare backend/frontend sul path sessioni per visualizzare correttamente i dati finali.
+
+---
+
+## Criteri di Accettazione
+
+- [ ] Il bot puo' eseguire piu' ordini consecutivi senza bloccarsi dopo il primo trade.
+- [ ] Un backtest termina senza lasciare processi zombie.
+- [ ] Dashboard mostra sempre stato corretto del bot (path sessioni coerenti).
+- [ ] Input malevoli su `bot_id`/`data_file` vengono respinti.
+- [ ] Nessun dato utente viene renderizzato con rischio XSS.
+- [ ] In fallback AI, il sistema non apre posizioni casuali.
+- [ ] Esiste una suite di test base che copre i flussi critici.
+
+---
+
+## Ordine Esecutivo Consigliato
+
+1. P0.1 -> P0.4 (funzionalita core)
+2. P0.5 -> P0.7 (sicurezza)
+3. P1 completo (robustezza runtime)
+4. P2 completo (qualita e mantenibilita)

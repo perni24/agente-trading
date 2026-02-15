@@ -52,6 +52,7 @@ def start_bot():
     bot_id = data['bot_id']
     symbol = data.get('symbol', 'EURUSD')
     data_file = data.get('data_file', 'dati_esempio.csv') # Default file
+    mode = data.get('mode', 'backtest')
 
     if bot_id in active_bots:
         if active_bots[bot_id].poll() is None:
@@ -68,7 +69,8 @@ def start_bot():
             sys.executable, engine_path, 
             '--bot_id', bot_id, 
             '--symbol', symbol,
-            '--data_file', data_file
+            '--data_file', data_file,
+            '--mode', mode
         ]
         
         # Avvia il processo senza bloccare lo stdout/stderr per vederli in console
@@ -93,7 +95,7 @@ def start_bot():
 
         # Registra il bot attivo
         active_bots[bot_id] = process
-        return jsonify({'message': f'Bot {bot_id} avviato con successo su {symbol}.'}), 200
+        return jsonify({'message': f'Bot {bot_id} avviato con successo su {symbol} ({mode}).'}), 200
     except Exception as e:
         return jsonify({'message': f'Errore interno durante l\'avvio del bot {bot_id}: {str(e)}'}), 500
 
@@ -167,7 +169,8 @@ def get_status():
         }
 
         # Tenta di leggere il file di stato specifico
-        status_file = os.path.join('sessions', f'status_{bot_id}.json')
+        sessions_dir = os.path.join(os.path.dirname(__file__), 'sessions')
+        status_file = os.path.join(sessions_dir, f'status_{bot_id}.json')
         if os.path.exists(status_file):
             try:
                 with open(status_file, 'r') as f:

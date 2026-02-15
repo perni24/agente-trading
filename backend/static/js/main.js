@@ -48,8 +48,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/start_bot', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    bot_id: botId, 
+                body: JSON.stringify({
+                    bot_id: botId,
                     data_file: dataFile,
                     symbol: dataFile.split('.')[0] // Usa il nome del file come simbolo di default
                 })
@@ -109,14 +109,35 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const [botId, data] of Object.entries(botsData)) {
                 const statusColor = data.bot_running ? 'green' : 'red';
                 const statusText = data.bot_running ? 'In Esecuzione' : 'Fermo/Errore';
-                
+
                 const portfolio = data.portfolio_value ? parseFloat(data.portfolio_value).toFixed(2) : '--';
                 const lastPrice = data.last_close ? parseFloat(data.last_close).toFixed(4) : '--';
-                
+                const finalValue = data.final_portfolio_value !== undefined
+                    ? parseFloat(data.final_portfolio_value).toFixed(2)
+                    : null;
+                const finalPnl = data.final_pnl !== undefined
+                    ? parseFloat(data.final_pnl).toFixed(2)
+                    : null;
+
+                const finalResultHtml = !data.bot_running && (finalValue !== null || data.status || data.event)
+                    ? `
+                        <div class="final-result" style="margin-top:10px;padding:8px;border-radius:4px;background:#f4f6f8;">
+                            <div><strong>Risultato Finale:</strong> ${data.status || 'Terminato'}</div>
+                            <div><strong>Dettaglio:</strong> ${data.event || '--'}</div>
+                            <div><strong>Valore Finale:</strong> ${finalValue ?? '--'}</div>
+                            <div><strong>PnL:</strong> ${
+                                finalPnl === null
+                                    ? '--'
+                                    : (parseFloat(finalPnl) >= 0 ? '+' : '') + finalPnl
+                            }</div>
+                        </div>
+                    `
+                    : '';
+
                 // Genera HTML per i log
-                const logsHtml = (data.recent_logs || []).map(log => 
+                const logsHtml = (data.recent_logs || []).map(log =>
                     `<div class="log-entry">${log}</div>`
-                ).reverse().join(''); // Reverse per vedere i piÃ¹ recenti in alto
+                ).reverse().join(''); // Reverse per vedere i più recenti in alto
 
                 htmlContent += `
                     <div class="bot-card" id="card-${botId}">
@@ -133,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="logs-container">
                             ${logsHtml || '<div style="color: #555;">In attesa di log...</div>'}
                         </div>
+                        ${finalResultHtml}
                         <button class="btn-stop" onclick="window.stopBotDelegated('${botId}')">Ferma Bot</button>
                     </div>
                 `;

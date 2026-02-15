@@ -46,6 +46,28 @@ class AgentStrategy(bt.Strategy):
         self.log('Strategia Inizializzata')
         self.write_status('Inizializzazione')
 
+    def notify_order(self, order):
+        """Gestisce il ciclo di vita ordine e sblocca la strategia."""
+        if order.status in [order.Submitted, order.Accepted]:
+            return
+
+        if order.status == order.Completed:
+            side = 'BUY' if order.isbuy() else 'SELL'
+            self.log(
+                f'ORDER COMPLETED {side} @ {order.executed.price:.5f} '
+                f'(size: {order.executed.size})'
+            )
+        elif order.status == order.Canceled:
+            self.log('ORDER CANCELED')
+        elif order.status == order.Margin:
+            self.log('ORDER MARGIN REJECTED')
+        elif order.status == order.Rejected:
+            self.log('ORDER REJECTED')
+
+        # Qualunque stato finale deve liberare il lock ordine
+        self.order = None
+        self.write_status('Aggiornamento ordine')
+
     def write_status(self, event="Update"):
         """Scrive lo stato attuale e i log recenti su file"""
         status = {
@@ -95,9 +117,35 @@ class AgentStrategy(bt.Strategy):
             self.write_status(f'Vendita: {info.get("reason")}')
 
 
-def run_backtest(bot_id, symbol, data_file):
+def write_terminal_status(status_file, bot_id, status_label, event, error=None, extra_fields=None):
+    """Scrive lo stato finale del bot in modo consistente."""
+    payload = {}
+    if os.path.exists(status_file):
+        try:
+            with open(status_file, 'r') as f:
+                payload = json.load(f)
+        except Exception:
+            payload = {}
+
+    payload.update({
+        'bot_id': bot_id,
+        'timestamp': datetime.datetime.now().isoformat(),
+        'status': status_label,
+        'event': event
+    })
+    if error:
+        payload['error'] = error
+    if extra_fields:
+        payload.update(extra_fields)
+    with open(status_file, 'w') as f:
+        json.dump(payload, f, indent=4)
+
+
+def run_engine(bot_id, symbol, data_file, mode='backtest'):
     """
-    Configura ed esegue il backtest per un bot specifico.
+    Configura ed esegue il motore per un bot specifico.
+    mode=backtest: termina al termine del dataset
+    mode=live: resta attivo finche' il feed live produce dati
     """
     cerebro = bt.Cerebro()
     cerebro.addstrategy(AgentStrategy, bot_id=bot_id)
@@ -107,6 +155,7 @@ def run_backtest(bot_id, symbol, data_file):
     sessions_dir = os.path.join(basedir, 'sessions')
     os.makedirs(sessions_dir, exist_ok=True)
     datapath = os.path.join(basedir, 'data', data_file)
+    status_file = os.path.join(sessions_dir, f'status_{bot_id}.json')
     
     try:
         if not os.path.exists(datapath):
@@ -138,48 +187,69 @@ def run_backtest(bot_id, symbol, data_file):
     except Exception as e:
         error_msg = f"ERRORE dati ({data_file}): {str(e)}"
         print(error_msg)
-        with open(os.path.join(sessions_dir, f'status_{bot_id}.json'), 'w') as f:
-            json.dump({'bot_id': bot_id, 'status': 'Errore dati', 'error': error_msg}, f)
+        write_terminal_status(
+            status_file=status_file,
+            bot_id=bot_id,
+            status_label='Errore dati',
+            event='Errore caricamento dati',
+            error=error_msg
+        )
         return
 
     try:
-        cerebro.broker.setcash(10000.0)
-        print(f'[{bot_id}] Avvio su {data_file}')
+        initial_capital = 10000.0
+        cerebro.broker.setcash(initial_capital)
+        print(f'[{bot_id}] Avvio mode={mode} su {data_file}')
         cerebro.run()
     except Exception as e:
-        error_msg = f"ERRORE backtest: {str(e)}"
+        error_msg = f"ERRORE esecuzione: {str(e)}"
         print(error_msg)
-        with open(os.path.join(sessions_dir, f'status_{bot_id}.json'), 'w') as f:
-            json.dump({'bot_id': bot_id, 'status': 'Errore backtest', 'error': error_msg}, f)
+        write_terminal_status(
+            status_file=status_file,
+            bot_id=bot_id,
+            status_label='Errore esecuzione',
+            event='Errore run',
+            error=error_msg
+        )
+        return
 
-    # *** DEBUG LOOP ***
-    import time
-    status_file = os.path.join(sessions_dir, f'status_{bot_id}.json')
-    try:
-        while True:
-            try:
-                if os.path.exists(status_file):
-                    with open(status_file, 'r') as f:
-                        status = json.load(f)
-                else:
-                    status = {'bot_id': bot_id}
-                
-                status['status'] = 'Completato (Idle)'
-                status['last_update'] = datetime.datetime.now().isoformat()
-                
-                with open(status_file, 'w') as f:
-                    json.dump(status, f, indent=4)
-            except:
-                pass
-            time.sleep(5) 
-    except KeyboardInterrupt:
-        print(f"[{bot_id}] Interrotto.")
+    if mode == 'backtest':
+        final_value = round(cerebro.broker.getvalue(), 2)
+        final_pnl = round(final_value - initial_capital, 2)
+        write_terminal_status(
+            status_file=status_file,
+            bot_id=bot_id,
+            status_label='Completato',
+            event='Backtest terminato',
+            extra_fields={
+                'initial_capital': initial_capital,
+                'final_portfolio_value': final_value,
+                'final_pnl': final_pnl
+            }
+        )
+    else:
+        # In live reale il processo resta attivo durante cerebro.run().
+        # Se arriviamo qui, il feed live si e' chiuso o la run e' terminata.
+        final_value = round(cerebro.broker.getvalue(), 2)
+        final_pnl = round(final_value - initial_capital, 2)
+        write_terminal_status(
+            status_file=status_file,
+            bot_id=bot_id,
+            status_label='Terminato',
+            event='Feed live terminato',
+            extra_fields={
+                'initial_capital': initial_capital,
+                'final_portfolio_value': final_value,
+                'final_pnl': final_pnl
+            }
+        )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Backtrader Bot Instance')
     parser.add_argument('--bot_id', type=str, required=True, help='ID univoco del bot')
     parser.add_argument('--symbol', type=str, default='EURUSD', help='Simbolo')
     parser.add_argument('--data_file', type=str, default='dati_esempio.csv', help='File CSV in backend/data/')
+    parser.add_argument('--mode', type=str, choices=['backtest', 'live'], default='backtest', help='Modalita esecuzione')
     
     args = parser.parse_args()
-    run_backtest(args.bot_id, args.symbol, args.data_file)
+    run_engine(args.bot_id, args.symbol, args.data_file, args.mode)
