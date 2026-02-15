@@ -32,8 +32,13 @@ class AgentStrategy(bt.Strategy):
         self.dataclose = self.datas[0].close
         self.order = None
         self.recent_logs = []
-        # Salva nella cartella sessions
-        self.status_file = os.path.join('sessions', f'status_{self.params.bot_id}.json')
+        
+        # Assicurati che la cartella sessions esista
+        sessions_dir = os.path.join(os.path.dirname(__file__), 'sessions')
+        os.makedirs(sessions_dir, exist_ok=True)
+        
+        # Salva nella cartella sessions usando il percorso assoluto
+        self.status_file = os.path.join(sessions_dir, f'status_{self.params.bot_id}.json')
         
         # Inizializza l'Agente AI
         self.agent = TradingAgent()
@@ -69,8 +74,11 @@ class AgentStrategy(bt.Strategy):
 
         # Prepara i dati per l'agente
         market_data = {
-            'close': self.dataclose[0],
-            # Qui potremo aggiungere indicatori, volumi, etc.
+            'open': self.datas[0].open[0],
+            'high': self.datas[0].high[0],
+            'low': self.datas[0].low[0],
+            'close': self.datas[0].close[0],
+            'volume': self.datas[0].volume[0]
         }
 
         # Chiedi all'Agente cosa fare
@@ -96,25 +104,41 @@ def run_backtest(bot_id, symbol, data_file):
 
     # --- SORGENTE DATI ---
     basedir = os.path.abspath(os.path.dirname(__file__))
+    sessions_dir = os.path.join(basedir, 'sessions')
+    os.makedirs(sessions_dir, exist_ok=True)
     datapath = os.path.join(basedir, 'data', data_file)
     
     try:
         if not os.path.exists(datapath):
             raise FileNotFoundError(f"File non trovato: {datapath}")
             
+        # Rileva se il file contiene orari (intraday) o solo date
+        with open(datapath, 'r') as f:
+            first_line = f.readlines()[1] # Salta header
+            is_intraday = ' ' in first_line.split(',')[0]
+
+        if is_intraday:
+            dt_format = '%Y-%m-%d %H:%M:%S'
+            tf = bt.TimeFrame.Minutes
+            compression = 15 # Assumiamo 15m come da tua richiesta, potremmo renderlo dinamico
+        else:
+            dt_format = '%Y-%m-%d'
+            tf = bt.TimeFrame.Days
+            compression = 1
+
         data = bt.feeds.GenericCSVData(
             dataname=datapath,
-            fromdate=datetime.datetime(2023, 1, 1),
-            todate=datetime.datetime(2023, 12, 31),
-            dtformat=('%Y-%m-%d'),
+            dtformat=(dt_format),
             datetime=0, open=1, high=2, low=3, close=4, volume=5, openinterest=-1,
-            headers=True
+            headers=True,
+            timeframe=tf,
+            compression=compression
         )
         cerebro.adddata(data)
     except Exception as e:
         error_msg = f"ERRORE dati ({data_file}): {str(e)}"
         print(error_msg)
-        with open(os.path.join('sessions', f'status_{bot_id}.json'), 'w') as f:
+        with open(os.path.join(sessions_dir, f'status_{bot_id}.json'), 'w') as f:
             json.dump({'bot_id': bot_id, 'status': 'Errore dati', 'error': error_msg}, f)
         return
 
@@ -125,12 +149,12 @@ def run_backtest(bot_id, symbol, data_file):
     except Exception as e:
         error_msg = f"ERRORE backtest: {str(e)}"
         print(error_msg)
-        with open(os.path.join('sessions', f'status_{bot_id}.json'), 'w') as f:
+        with open(os.path.join(sessions_dir, f'status_{bot_id}.json'), 'w') as f:
             json.dump({'bot_id': bot_id, 'status': 'Errore backtest', 'error': error_msg}, f)
 
     # *** DEBUG LOOP ***
     import time
-    status_file = os.path.join('sessions', f'status_{bot_id}.json')
+    status_file = os.path.join(sessions_dir, f'status_{bot_id}.json')
     try:
         while True:
             try:

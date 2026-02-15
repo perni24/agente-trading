@@ -12,6 +12,20 @@ app = Flask(__name__)
 # Struttura: { 'bot_id': subprocess.Popen_object }
 active_bots = {}
 
+def cleanup_sessions():
+    sessions_dir = os.path.join(os.path.dirname(__file__), 'sessions')
+    if os.path.exists(sessions_dir):
+        for f in os.listdir(sessions_dir):
+            if f.endswith('.json'):
+                try:
+                    os.remove(os.path.join(sessions_dir, f))
+                except:
+                    pass
+    else:
+        os.makedirs(sessions_dir, exist_ok=True)
+
+cleanup_sessions()
+
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -47,19 +61,23 @@ def start_bot():
 
     try:
         # Costruzione comando con il nuovo parametro --data_file
+        # Percorso assoluto del motore di trading
+        engine_path = os.path.join(os.path.dirname(__file__), 'trading_engine.py')
+        
         cmd = [
-            sys.executable, 'trading_engine.py', 
+            sys.executable, engine_path, 
             '--bot_id', bot_id, 
             '--symbol', symbol,
             '--data_file', data_file
         ]
         
+        # Avvia il processo senza bloccare lo stdout/stderr per vederli in console
         process = subprocess.Popen(
             cmd,
             cwd='.', 
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            # Rimuoviamo PIPE per vedere i log direttamente nella console durante lo sviluppo
+            stdout=None,
+            stderr=None
         )
         
         # Un piccolo delay per vedere se crasha subito
@@ -107,15 +125,16 @@ def stop_bot():
         if bot_id in active_bots:
             del active_bots[bot_id]
         
-        # Gestione cancellazione file con retry per Windows
-        status_file = os.path.join('sessions', f'status_{bot_id}.json')
+        # Gestione cancellazione file con percorso assoluto sicuro
+        sessions_dir = os.path.join(os.path.dirname(__file__), 'sessions')
+        status_file = os.path.join(sessions_dir, f'status_{bot_id}.json')
         if os.path.exists(status_file):
             for i in range(3): # Tenta 3 volte
                 try:
                     os.remove(status_file)
                     break
                 except OSError:
-                    time.sleep(0.5) # Aspetta mezzo secondo tra i tentativi
+                    time.sleep(0.5)
                 except Exception:
                     pass 
 
