@@ -1,0 +1,24 @@
+{
+	"nodes":[
+		{"id":"node_trading_engine_py","type":"text","text":"### backend/trading_engine.py\n**Funzione: `run_engine()`**\n- Inizializza **Backtrader** (Cerebro)\n- Carica i dati CSV\n- Aggiunge la strategia `AgentStrategy`","x":320,"y":-395,"width":400,"height":265,"color":"2"},
+		{"id":"node_js_refresh","type":"text","text":"### static/js/main.js\n**Funzione: `refreshDashboard()`**\n- Chiamata ogni 2 secondi (`setInterval`)\n- Richiesta **GET `/status`**","x":-320,"y":-5,"width":300,"height":230,"color":"4"},
+		{"id":"node_ai_agent_py","type":"text","text":"### backend/ai_agent.py\n**Classe: `TradingAgent`**\n- Funzione: `get_decision()`\n- Calcolo indicatori (RSI, EMA, MACD)\n- Inferenza Modello **LightGBM**","x":1680,"y":-498,"width":400,"height":227,"color":"3"},
+		{"id":"node_agent_strategy","type":"text","text":"### backend/trading_engine.py\n**Classe: `AgentStrategy`**\n- Ciclo di trading principale\n- `next()`: Chiamata per ogni candela\n- Gestione ordini (`notify_order`)","x":950,"y":-395,"width":400,"height":220,"color":"2"},
+		{"id":"node_sessions_json","type":"text","text":"### backend/sessions/status_*.json\n**File di Stato**\n- Scritto da cada candela in `next()`\n- Contiene: Portafoglio, Log, Stato","x":975,"y":-5,"width":350,"height":230,"color":"6"},
+		{"id":"node_app_py_status","type":"text","text":"### backend/app.py\n**Endpoint: `/status`**\n- Legge tutti i file in `sessions/`\n- Restituisce JSON aggregato","x":320,"y":-5,"width":350,"height":230,"color":"1"},
+		{"id":"node_user_ui","type":"text","text":"### Dashboard (Browser)\n**Interazione Utente**\n1. Inserisce `ID Bot`\n2. Seleziona `Dataset`\n3. Clicca **[Avvia Nuovo Bot]**","x":-1000,"y":-880,"width":360,"height":250,"color":"5"},
+		{"id":"node_js_main","type":"text","text":"### static/js/main.js\n**Funzione: `createBot()`**\n- Recupera input dal DOM\n- Invia richiesta **POST `/start_bot`**\n- Gestisce la risposta UI","x":-970,"y":-425,"width":300,"height":250,"color":"4"},
+		{"id":"node_app_py_start","type":"text","text":"### backend/app.py\n**Endpoint: `/start_bot`**\n- Riceve JSON (bot_id, data_file)\n- Verifica se il bot è già attivo\n- Lancia il sottoprocesso","x":-345,"y":-435,"width":350,"height":270,"color":"1"}
+	],
+	"edges":[
+		{"id":"e3","fromNode":"node_app_py_start","fromSide":"right","toNode":"node_trading_engine_py","toSide":"left","label":"subprocess.Popen"},
+		{"id":"e4","fromNode":"node_trading_engine_py","fromSide":"right","toNode":"node_agent_strategy","toSide":"left","label":"Cerebro Run"},
+		{"id":"e5","fromNode":"node_agent_strategy","fromSide":"right","toNode":"node_ai_agent_py","toSide":"left","label":"Decision Loop"},
+		{"id":"e6","fromNode":"node_agent_strategy","fromSide":"bottom","toNode":"node_sessions_json","toSide":"top"},
+		{"id":"e7","fromNode":"node_js_refresh","fromSide":"right","toNode":"node_app_py_status","toSide":"left","label":"Polling Loop"},
+		{"id":"e1","fromNode":"node_user_ui","fromSide":"bottom","toNode":"node_js_main","toSide":"top","label":"Click Event"},
+		{"id":"e2","fromNode":"node_js_main","fromSide":"right","toNode":"node_app_py_start","toSide":"left","label":"HTTP POST"},
+		{"id":"e8","fromNode":"node_app_py_status","fromSide":"right","toNode":"node_sessions_json","toSide":"left","label":"Read Files"},
+		{"id":"e9","fromNode":"node_app_py_status","fromSide":"left","toNode":"node_js_refresh","toSide":"right","label":"Update DOM"}
+	]
+}

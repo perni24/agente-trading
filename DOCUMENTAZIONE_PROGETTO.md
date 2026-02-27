@@ -28,12 +28,18 @@ L'applicazione è suddivisa in tre livelli principali:
 
 ---
 
+### 4. Documentazione Visuale (`documentazione agente-trading/`)
+*   **Workflow Canvas**: Un file `.canvas` visualizzabile in **Obsidian** che illustra graficamente l'interazione tra tutti i moduli.
+*   **Approfondimenti**: Documentazione specifica per i file core (es. `spiegazione_app_py.md`).
+
+---
+
 ## 🖥️ Interfaccia di Controllo (`run.py` & `backend/app.py`)
 *   **Dashboard Web:** Una UI che permette di:
     *   Creare e avviare nuovi bot di trading.
     *   Scegliere dinamicamente il dataset CSV da utilizzare.
     *   Monitorare in tempo reale il valore del portafoglio, la posizione attuale e i log delle operazioni.
-*   **Gestione Sessioni:** Pulizia automatica delle sessioni e monitoraggio dei processi attivi.
+*   **Gestione Sessioni:** Pulizia automatica delle sessioni all'avvio e monitoraggio tramite file JSON in `backend/sessions/`.
 
 ---
 
@@ -57,7 +63,8 @@ L'applicazione è suddivisa in tre livelli principali:
 ## ⚠️ Punti Cruciali e Sicurezza
 *   **Frequenza Dati:** Per il trading intraday (15m), Yahoo Finance limita lo storico a 60 giorni.
 *   **Confidenza Modello:** Il bot agisce solo quando la probabilità stimata dall'IA supera una certa soglia (es. > 0.6 per l'acquisto).
-*   **Isolamento:** Ogni bot opera nel suo spazio di memoria e scrive il proprio file di stato unico, garantendo che le strategie non interferiscano tra loro.
+*   **Isolamento:** Ogni bot opera nel suo spazio di memoria come processo indipendente e scrive il proprio file di stato unico in `backend/sessions/`.
+*   **Configurazione Path:** Il sistema utilizza percorsi assoluti calcolati dinamicamente per garantire il corretto caricamento di dati e modelli indipendentemente dalla directory di esecuzione.
 
 ---
 
